@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Przelicznik przepisów</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    h1 {
+      color: #e67e22;
+      text-align: center;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 16px;
+      margin-bottom: 4px;
+    }
+
+    .opis {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    textarea, input {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 14px;
+      font-size: 18px;
+      background-color: #e67e22;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover { background-color: #cf6d17; }
+
+    #btnWyciagnij {
+      background-color: #3498db;
+      margin-top: 8px;
+    }
+
+    #btnWyciagnij:hover { background-color: #2176ae; }
+
+    #btnCzyszc {
+      background-color: #999;
+      margin-top: 8px;
+    }
+
+    #btnCzyszc:hover { background-color: #777; }
+
+    #wynik {
+      margin-top: 24px;
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #e67e22;
+      line-height: 1.8;
+    }
+
+    .skladnik-wiersz {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .skladnik-nazwa { color: #333; }
+    .skladnik-ilosc { font-weight: bold; color: #e67e22; }
+
+    #komunikat {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #3498db;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🍳 Przelicznik przepisów</h1>
+
+  <!-- SEKCJA 1: wklejanie opisu -->
+  <label>1. Wklej opis przepisu (np. z TikToka lub FB):</label>
+  <p class="opis">Wklej cały tekst — aplikacja sama znajdzie składniki.</p>
+  <textarea id="opisPrzepisu" rows="6"
+    placeholder="Sam zrób nuggetsy! 🍗&#10;* 200 g kurczaka&#10;* 2 jajka&#10;Wkładam wszystko do miksera..."></textarea>
+
+  <button id="btnWyciagnij" onclick="wyciagnijSkladniki()">
+    🔍 Wyciągnij składniki
+  </button>
+
+  <div id="komunikat"></div>
+
+  <!-- SEKCJA 2: składniki (wypełniane automatycznie lub ręcznie) -->
+  <label style="margin-top: 24px;">2. Składniki (możesz poprawić):</label>
+  <p class="opis">Każdy składnik w osobnej linii, np: 200 g kurczaka</p>
+  <textarea id="skladniki" rows="5"
+    placeholder="200 g kurczaka&#10;140 g sera&#10;2 jajka"></textarea>
+
+  <!-- SEKCJA 3: przeliczanie -->
+  <label style="margin-top: 24px;">3. Podaj swoje ilości:</label>
+
+  <label>Główny składnik (nazwa):</label>
+  <input id="glowny" type="text" placeholder="np. kurczaka">
+
+  <label>Moja ilość:</label>
+  <input id="mojaIlosc" type="number" placeholder="np. 300">
+
+  <button onclick="przelicz()">Przelicz! 🔢</button>
+  <button id="btnCzyszc" onclick="czyszc()">Wyczyść 🗑️</button>
+
+  <div id="wynik"></div>
+
+  <script>
+    var jednostki = ["g", "kg", "ml", "l", "szt", "łyżka", "łyżki",
+                     "łyżek", "łyżeczka", "łyżeczki", "szklanka",
+                     "szklanki", "szklanek", "sztuka", "sztuki", "dag"];
+
+    // Sprawdza czy linia wygląda jak składnik
+    function czyToSkladnik(linia) {
+      var tekst = linia.trim();
+
+      // Musi zawierać liczbę
+      if (!/\d/.test(tekst)) return false;
+
+      // Nie może być za długa (składniki to krótkie linie)
+      if (tekst.length > 60) return false;
+
+      // Nie może zaczynać się od cyfry która wygląda jak krok (np. "1. Wkładam")
+      if (/^\d+\.\s+[A-ZŁŚŻŹĆŃÓĘĄ]/.test(tekst)) return false;
+
+      // Musi mieć liczbę z jednostką LUB samą liczbę na początku
+      if (/^[\*\-•]?\s*\d/.test(tekst)) return true;
+      if (/\d+\s*(g|kg|ml|l|dag|szt|łyżk|łyżeczk|szklank)/i.test(tekst)) return true;
+
+      return false;
+    }
+
+    // Czyści linię ze śmieci (gwiazdki, myślniki, emotikony)
+    function oczyscLinie(linia) {
+      return linia
+        .replace(/^[\*\-•·]\s*/, "")   // usuń * - • na początku
+        .replace(/[^\w\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ.,]/g, " ") // usuń emotikony
+        .replace(/\s+/g, " ")           // podwójne spacje → jedna
+        .trim();
+    }
+
+    function wyciagnijSkladniki() {
+      var opis = document.getElementById("opisPrzepisu").value;
+      var komunikat = document.getElementById("komunikat");
+
+      if (!opis.trim()) {
+        komunikat.innerHTML = "⚠️ Wklej najpierw opis przepisu!";
+        return;
+      }
+
+      var linie = opis.split("\n");
+      var znalezione = [];
+
+      for (var i = 0; i < linie.length; i++) {
+        if (czyToSkladnik(linie[i])) {
+          znalezione.push(oczyscLinie(linie[i]));
+        }
+      }
+
+      if (znalezione.length === 0) {
+        komunikat.innerHTML = "❌ Nie znalazłem składników. " +
+          "Spróbuj wkleić inny fragment lub wpisz składniki ręcznie.";
+        return;
+      }
+
+      document.getElementById("skladniki").value = znalezione.join("\n");
+      komunikat.innerHTML = "✅ Znalazłem " + znalezione.length +
+        " składników! Sprawdź czy są poprawne i popraw jeśli trzeba.";
+    }
+
+    function parsujLinie(linia) {
+      var wzorzec = /^([\d.]+)\s*(\S+)?\s+(.+)$/;
+      var wynik = linia.trim().match(wzorzec);
+      if (!wynik) return null;
+
+      var liczba = parseFloat(wynik[1]);
+      var drugiCzlon = wynik[2] || "";
+      var reszta = wynik[3] || "";
+      var czyJednostka = jednostki.includes(drugiCzlon.toLowerCase());
+
+      if (czyJednostka) {
+        return { liczba: liczba, jednostka: drugiCzlon, nazwa: reszta };
+      } else {
+        return { liczba: liczba, jednostka: "szt", nazwa: drugiCzlon + " " + reszta };
+      }
+    }
+
+    function formatujLiczbe(n) {
+      if (n % 1 < 0.05 || n % 1 > 0.95) return Math.round(n).toString();
+      return n.toFixed(1);
+    }
+
+    function przelicz() {
+      var tekst = document.getElementById("skladniki").value.trim();
+      var glowny = document.getElementById("glowny").value.toLowerCase().trim();
+      var mojaIlosc = parseFloat(document.getElementById("mojaIlosc").value);
+
+      if (!tekst || !glowny || isNaN(mojaIlosc)) {
+        document.getElementById("wynik").innerHTML = "⚠️ Wypełnij wszystkie pola!";
+        return;
+      }
+
+      var linie = tekst.split("\n").filter(function(l) { return l.trim() !== ""; });
+      var oryginalnaIlosc = null;
+
+      for (var i = 0; i < linie.length; i++) {
+        if (linie[i].toLowerCase().includes(glowny)) {
+          var p = parsujLinie(linie[i]);
+          if (p) { oryginalnaIlosc = p.liczba; break; }
+        }
+      }
+
+      if (oryginalnaIlosc === null) {
+        document.getElementById("wynik").innerHTML =
+          "❌ Nie znalazłem składnika: <b>" + glowny + "</b>";
+        return;
+      }
+
+      var proporcja = mojaIlosc / oryginalnaIlosc;
+      var html = "<b>Przeliczone składniki (x" + proporcja.toFixed(2) + "):</b><br><br>";
+
+      for (var i = 0; i < linie.length; i++) {
+        var p = parsujLinie(linie[i]);
+        if (p) {
+          var nowaLiczba = formatujLiczbe(p.liczba * proporcja);
+          html += '<div class="skladnik-wiersz">' +
+            '<span class="skladnik-nazwa">' + p.nazwa + '</span>' +
+            '<span class="skladnik-ilosc">' + nowaLiczba + ' ' + p.jednostka + '</span>' +
+            '</div>';
+        }
+      }
+
+      document.getElementById("wynik").innerHTML = html;
+    }
+
+    function czyszc() {
+      document.getElementById("opisPrzepisu").value = "";
+      document.getElementById("skladniki").value = "";
+      document.getElementById("glowny").value = "";
+      document.getElementById("mojaIlosc").value = "";
+      document.getElementById("wynik").innerHTML = "";
+      document.getElementById("komunikat").innerHTML = "";
+    }
+  </script>
+
+</body>
+</html>
