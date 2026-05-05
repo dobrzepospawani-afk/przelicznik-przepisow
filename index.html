@@ -507,7 +507,7 @@ footer{
 
         <div class="panel" id="panel3b">
           <label class="field-label">Podaj swoje ilości</label>
-          <div class="input-2col" style="margin-bottom:16px">
+          <div class="input-2col" style="margin-bottom:12px">
             <div class="input-group">
               <label>Główny składnik</label>
               <input id="glowny" type="text" placeholder="np. kurczaka">
@@ -515,6 +515,16 @@ footer{
             <div class="input-group">
               <label>Moja ilość (g / szt)</label>
               <input id="mojaIlosc" type="number" placeholder="np. 300">
+            </div>
+          </div>
+          <div class="input-2col" style="margin-bottom:16px">
+            <div class="input-group">
+              <label>Liczba porcji w przepisie</label>
+              <input id="porcjeOryg" type="number" placeholder="np. 4" min="1">
+            </div>
+            <div class="input-group">
+              <label>Kalorie całego przepisu (kcal)</label>
+              <input id="kalorieOryg" type="number" placeholder="np. 1200 (opcjonalnie)">
             </div>
           </div>
           <button class="btn-tool btn-tool-primary" onclick="przelicz()" style="margin-bottom:10px">✨ Przelicz proporcje</button>
@@ -592,7 +602,8 @@ footer{
 </footer>
 
 <script>
-var jednostki=["g","kg","ml","l","szt","łyżka","łyżki","łyżek","łyżeczka","łyżeczki","szklanka","szklanki","szklanek","sztuka","sztuki","dag"];
+var jednostki=["g","kg","ml","l","dl","cl","szt","łyżka","łyżki","łyżek","łyżeczka","łyżeczki","łyżeczkę","łyżkę","szklanka","szklanki","szklanek","szklankę","sztuka","sztuki","dag","litr","litry","litrów","litra","ml","mililitr","mililitry"];
+var jednostkiNorm={"litr":"l","litry":"l","litrów":"l","litra":"l","mililitr":"ml","mililitry":"ml","litrze":"l","dl":"dl","cl":"cl","łyżeczkę":"łyżeczka","łyżkę":"łyżka","szklankę":"szklanka","sztukę":"szt"};
 function goStep(n){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});
   document.getElementById('panel'+n+'b').classList.add('active');
@@ -627,13 +638,20 @@ function wyciagnijSkladniki(){
   showMsg('komunikat','ok','✓ Znalazłem '+znalezione.length+' składników!');
   setTimeout(function(){goStep(2);},900);
 }
+function normJednostka(j){
+  var jl=j.toLowerCase();
+  if(jednostkiNorm[jl])return jednostkiNorm[jl];
+  return j;
+}
 function parsujLinie(l){
   var w=/^([\d.,½¼¾]+)\s*(\S+)?\s+(.+)$/.exec(l.trim());
   if(!w)return null;
   var raw=w[1].replace(',','.');
   var liczba=raw==='½'?0.5:raw==='¼'?0.25:raw==='¾'?0.75:parseFloat(raw);
   var d=w[2]||"",r=w[3]||"";
-  if(jednostki.includes(d.toLowerCase()))return{liczba:liczba,jednostka:d,nazwa:r};
+  var dl=d.toLowerCase();
+  var isJednostka=jednostki.includes(dl)||jednostkiNorm[dl];
+  if(isJednostka)return{liczba:liczba,jednostka:normJednostka(d),nazwa:r};
   return{liczba:liczba,jednostka:"szt",nazwa:d+" "+r};
 }
 function fmt(n){
@@ -649,15 +667,41 @@ function przelicz(){
   var mojaIlosc=parseFloat(document.getElementById("mojaIlosc").value);
   if(!tekst||!glowny||isNaN(mojaIlosc)){document.getElementById("wynik").innerHTML='<div class="toast toast-err">⚠ Wypełnij wszystkie pola!</div>';return;}
   var linie=tekst.split("\n").filter(function(l){return l.trim()!==""}),orig=null;
+  function stemPL(s){
+    return s.replace(/(owie|ości|ości|iem|iem|ach|ami|owi|iem|ią|ie|ę|ą|y|i|a|ę|ę)$/,'').toLowerCase();
+  }
+  var glownyStem=stemPL(glowny);
   for(var i=0;i<linie.length;i++){
-    if(linie[i].toLowerCase().includes(glowny)){var p=parsujLinie(linie[i]);if(p){orig=p.liczba;break;}}
+    var liniaL=linie[i].toLowerCase();
+    var p=parsujLinie(linie[i]);
+    if(!p)continue;
+    var nazwaStem=stemPL(p.nazwa.toLowerCase());
+    if(liniaL.includes(glowny)||nazwaStem.includes(glownyStem)||glownyStem.includes(nazwaStem.substring(0,Math.min(5,nazwaStem.length)))){
+      orig=p.liczba;break;
+    }
   }
   if(orig===null){document.getElementById("wynik").innerHTML='<div class="toast toast-err">Nie znalazłem składnika: <b>'+glowny+'</b></div>';return;}
   var prop=mojaIlosc/orig;
+  var porcjeOryg=parseInt(document.getElementById("porcjeOryg").value)||0;
+  var kalorieOryg=parseInt(document.getElementById("kalorieOryg").value)||0;
   var rows="";
   for(var i=0;i<linie.length;i++){var p=parsujLinie(linie[i]);if(p)rows+='<div class="ing-row"><span class="ing-name">'+p.nazwa.charAt(0).toUpperCase()+p.nazwa.slice(1)+'</span><span class="ing-amt">'+fmt(p.liczba*prop)+' '+p.jednostka+'</span></div>';}
   var mult=prop>=1?'×'+prop.toFixed(2):'÷'+(1/prop).toFixed(2);
-  document.getElementById("wynik").innerHTML='<div class="result-box"><div class="result-head"><span class="result-title">Przeliczone składniki</span><span class="mult-badge">'+mult+'</span></div>'+rows+'<div class="result-actions"><button class="result-btn" onclick="kopiuj()">📋 Kopiuj listę</button><button class="result-btn" onclick="czyszc()">🔄 Nowy przepis</button></div></div>';
+
+  // Portions & calories block
+  var statsHtml='';
+  if(porcjeOryg>0||kalorieOryg>0){
+    var nowePorcje=porcjeOryg>0?Math.round(porcjeOryg*prop):null;
+    var noweKalorie=kalorieOryg>0?Math.round(kalorieOryg*prop):null;
+    var kaloNaPorcje=noweKalorie&&nowePorcje?Math.round(noweKalorie/nowePorcje):null;
+    statsHtml='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:16px 0;padding:16px;background:var(--cream);border-radius:12px">';
+    if(nowePorcje)statsHtml+='<div style="text-align:center"><div style="font-size:22px font-weight:900;color:var(--orange)">'+nowePorcje+'</div><div style="font-size:11px;color:var(--light);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-top:2px">Porcje</div></div>';
+    if(noweKalorie)statsHtml+='<div style="text-align:center"><div style="font-size:22px;font-weight:900;color:var(--orange)">'+noweKalorie+'</div><div style="font-size:11px;color:var(--light);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-top:2px">kcal łącznie</div></div>';
+    if(kaloNaPorcje)statsHtml+='<div style="text-align:center"><div style="font-size:22px;font-weight:900;color:var(--orange)">'+kaloNaPorcje+'</div><div style="font-size:11px;color:var(--light);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-top:2px">kcal / porcja</div></div>';
+    statsHtml+='</div>';
+  }
+
+  document.getElementById("wynik").innerHTML='<div class="result-box"><div class="result-head"><span class="result-title">Przeliczone składniki</span><span class="mult-badge">'+mult+'</span></div>'+statsHtml+rows+'<div class="result-actions"><button class="result-btn" onclick="kopiuj()">📋 Kopiuj listę</button><button class="result-btn" onclick="czyszc()">🔄 Nowy przepis</button></div></div>';
 }
 function kopiuj(){
   var tekst=document.getElementById("skladniki").value.trim();
@@ -673,7 +717,7 @@ function kopiuj(){
   });
 }
 function czyszc(){
-  ["opisPrzepisu","skladniki","glowny","mojaIlosc"].forEach(function(id){document.getElementById(id).value="";});
+  ["opisPrzepisu","skladniki","glowny","mojaIlosc","porcjeOryg","kalorieOryg"].forEach(function(id){document.getElementById(id).value="";});
   document.getElementById("wynik").innerHTML="";
   document.getElementById("komunikat").innerHTML="";
   czyscZdjecie();
