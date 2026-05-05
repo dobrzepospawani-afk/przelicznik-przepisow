@@ -731,17 +731,27 @@ function przelicz(){
   if(!tekst||!glowny||isNaN(mojaIlosc)){document.getElementById("wynik").innerHTML='<div class="toast toast-err">⚠ Wypełnij wszystkie pola!</div>';return;}
   var linie=tekst.split("\n").filter(function(l){return l.trim()!==""}),orig=null;
   function stemPL(s){
-    return s.replace(/(owie|ości|ości|iem|iem|ach|ami|owi|iem|ią|ie|ę|ą|y|i|a|ę|ę)$/,'').toLowerCase();
+    return s.replace(/(owie|ości|owej|owego|owym|ową|owe|owi|owych|owa|ową|iem|ach|ami|owi|ią|ie|ę|ą|owy|y|i|a)$/,'').toLowerCase();
   }
-  var glownyStem=stemPL(glowny);
+  function matchSkladnik(gl,liniaFull){
+    var gll=gl.toLowerCase().trim();
+    var liniaL=liniaFull.toLowerCase();
+    if(liniaL.indexOf(gll)>=0)return true;
+    var glStem=stemPL(gll);
+    if(glStem.length>=3&&liniaL.indexOf(glStem)>=0)return true;
+    var words=liniaL.split(/\s+/);
+    for(var w=0;w<words.length;w++){
+      var wStem=stemPL(words[w]);
+      if(wStem.length>=3&&glStem.length>=3){
+        if(glStem.indexOf(wStem)>=0||wStem.indexOf(glStem)>=0)return true;
+      }
+    }
+    return false;
+  }
   for(var i=0;i<linie.length;i++){
-    var liniaL=linie[i].toLowerCase();
     var p=parsujLinie(linie[i]);
     if(!p)continue;
-    var nazwaStem=stemPL(p.nazwa.toLowerCase());
-    if(liniaL.includes(glowny)||nazwaStem.includes(glownyStem)||glownyStem.includes(nazwaStem.substring(0,Math.min(5,nazwaStem.length)))){
-      orig=p.liczba;break;
-    }
+    if(matchSkladnik(glowny,linie[i])){orig=p.liczba;break;}
   }
   if(orig===null){document.getElementById("wynik").innerHTML='<div class="toast toast-err">Nie znalazłem składnika: <b>'+glowny+'</b></div>';return;}
   var prop=mojaIlosc/orig;
