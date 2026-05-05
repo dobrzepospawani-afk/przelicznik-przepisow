@@ -423,6 +423,79 @@ footer{
   </div>
 </section>
 
+<!-- APP - przeniesione wyżej -->
+<section class="app-section" id="app" style="padding-top:60px;padding-bottom:60px">
+  <div class="app-inner">
+    <div class="section-tag" style="margin-bottom:12px">🍳 Wypróbuj teraz</div>
+    <h2 class="app-title">SmartPrzepis <em>w akcji</em></h2>
+    <p class="app-sub">Wklej swój przepis poniżej i przelicz składniki w kilka sekund.</p>
+
+    <div class="tool-wrap">
+      <div class="tool-header">
+        <div class="tool-header-dots">
+          <div class="dot dot1"></div><div class="dot dot2"></div><div class="dot dot3"></div>
+        </div>
+        <span class="tool-header-title">🍳 SmartPrzepis — Przelicznik składników</span>
+      </div>
+      <div class="tool-body">
+
+        <div class="steps-nav">
+          <button class="step-btn active" id="navStep1b" onclick="goStep(1)">
+            <span class="step-num" id="sn1b">1</span> Przepis
+          </button>
+          <button class="step-btn" id="navStep2b" onclick="goStep(2)">
+            <span class="step-num" id="sn2b">2</span> Składniki
+          </button>
+          <button class="step-btn" id="navStep3b" onclick="goStep(3)">
+            <span class="step-num" id="sn3b">3</span> Przelicz
+          </button>
+        </div>
+
+        <div class="panel active" id="panel1b">
+          <label class="field-label">Wklej opis przepisu</label>
+          <div class="field-card">
+            <textarea id="opisPrzepisu" rows="7" placeholder="Wklej tutaj cały tekst przepisu z TikToka, Instagrama lub FB...&#10;&#10;Np. &quot;Domowe nuggetsy 🍗&#10;• 500g piersi z kurczaka&#10;• 2 jajka&#10;• 150g bułki tartej&quot;&#10;&#10;Aplikacja sama znajdzie składniki!"></textarea>
+          </div>
+          <div id="komunikat"></div>
+          <div class="action-row">
+            <button class="btn-tool btn-tool-blue" onclick="wyciagnijSkladniki()">🔍 Wyciągnij składniki</button>
+            <button class="btn-tool btn-tool-ghost" onclick="czyszc()">🗑 Wyczyść</button>
+          </div>
+        </div>
+
+        <div class="panel" id="panel2b">
+          <label class="field-label">Sprawdź i popraw składniki</label>
+          <div class="field-card">
+            <textarea id="skladniki" rows="8" placeholder="200 g kurczaka&#10;2 jajka&#10;150 g bułki tartej&#10;&#10;Każdy składnik w osobnej linii."></textarea>
+          </div>
+          <div class="action-row">
+            <button class="btn-tool btn-tool-primary" onclick="goStep(3)">Dalej →</button>
+            <button class="btn-tool btn-tool-ghost" onclick="goStep(1)">← Wróć</button>
+          </div>
+        </div>
+
+        <div class="panel" id="panel3b">
+          <label class="field-label">Podaj swoje ilości</label>
+          <div class="input-2col" style="margin-bottom:16px">
+            <div class="input-group">
+              <label>Główny składnik</label>
+              <input id="glowny" type="text" placeholder="np. kurczaka">
+            </div>
+            <div class="input-group">
+              <label>Moja ilość (g / szt)</label>
+              <input id="mojaIlosc" type="number" placeholder="np. 300">
+            </div>
+          </div>
+          <button class="btn-tool btn-tool-primary" onclick="przelicz()" style="margin-bottom:10px">✨ Przelicz proporcje</button>
+          <button class="btn-tool btn-tool-ghost" onclick="goStep(2)">← Wróć do składników</button>
+          <div id="wynik"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- JAK DZIAŁA -->
 <section class="section" id="jak-dziala">
   <div class="section-tag">🔍 Jak to działa</div>
@@ -481,82 +554,6 @@ footer{
   </div>
 </section>
 
-<!-- APP -->
-<section class="app-section" id="app">
-  <div class="app-inner">
-    <div class="section-tag" style="margin-bottom:12px">🍳 Wypróbuj</div>
-    <h2 class="app-title">SmartPrzepis <em>w akcji</em></h2>
-    <p class="app-sub">Wklej swój przepis poniżej i przelicz składniki w kilka sekund.</p>
-
-    <div class="tool-wrap">
-      <div class="tool-header">
-        <div class="tool-header-dots">
-          <div class="dot dot1"></div><div class="dot dot2"></div><div class="dot dot3"></div>
-        </div>
-        <span class="tool-header-title">🍳 SmartPrzepis — Przelicznik składników</span>
-      </div>
-      <div class="tool-body">
-
-        <div class="steps-nav">
-          <button class="step-btn active" id="navStep1" onclick="goStep(1)">
-            <span class="step-num" id="sn1">1</span> Przepis
-          </button>
-          <button class="step-btn" id="navStep2" onclick="goStep(2)">
-            <span class="step-num" id="sn2">2</span> Składniki
-          </button>
-          <button class="step-btn" id="navStep3" onclick="goStep(3)">
-            <span class="step-num" id="sn3">3</span> Przelicz
-          </button>
-        </div>
-
-        <!-- PANEL 1 -->
-        <div class="panel active" id="panel1">
-          <label class="field-label">Wklej opis przepisu</label>
-          <div class="field-card">
-            <textarea id="opisPrzepisu" rows="7" placeholder="Wklej tutaj cały tekst przepisu z TikToka, Instagrama lub FB...&#10;&#10;Np. &quot;Domowe nuggetsy 🍗&#10;• 500g piersi z kurczaka&#10;• 2 jajka&#10;• 150g bułki tartej&quot;&#10;&#10;Aplikacja sama znajdzie składniki!"></textarea>
-          </div>
-          <div id="komunikat"></div>
-          <div class="action-row">
-            <button class="btn-tool btn-tool-blue" onclick="wyciagnijSkladniki()">🔍 Wyciągnij składniki</button>
-            <button class="btn-tool btn-tool-ghost" onclick="czyszc()">🗑 Wyczyść</button>
-          </div>
-        </div>
-
-        <!-- PANEL 2 -->
-        <div class="panel" id="panel2">
-          <label class="field-label">Sprawdź i popraw składniki</label>
-          <div class="field-card">
-            <textarea id="skladniki" rows="8" placeholder="200 g kurczaka&#10;2 jajka&#10;150 g bułki tartej&#10;&#10;Każdy składnik w osobnej linii."></textarea>
-          </div>
-          <div class="action-row">
-            <button class="btn-tool btn-tool-primary" onclick="goStep(3)">Dalej →</button>
-            <button class="btn-tool btn-tool-ghost" onclick="goStep(1)">← Wróć</button>
-          </div>
-        </div>
-
-        <!-- PANEL 3 -->
-        <div class="panel" id="panel3">
-          <label class="field-label">Podaj swoje ilości</label>
-          <div class="input-2col" style="margin-bottom:16px">
-            <div class="input-group">
-              <label>Główny składnik</label>
-              <input id="glowny" type="text" placeholder="np. kurczaka">
-            </div>
-            <div class="input-group">
-              <label>Moja ilość (g / szt)</label>
-              <input id="mojaIlosc" type="number" placeholder="np. 300">
-            </div>
-          </div>
-          <button class="btn-tool btn-tool-primary" onclick="przelicz()" style="margin-bottom:10px">✨ Przelicz proporcje</button>
-          <button class="btn-tool btn-tool-ghost" onclick="goStep(2)">← Wróć do składników</button>
-          <div id="wynik"></div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo">🍳 Smart<span>Przepis</span></div>
@@ -567,12 +564,12 @@ footer{
 var jednostki=["g","kg","ml","l","szt","łyżka","łyżki","łyżek","łyżeczka","łyżeczki","szklanka","szklanki","szklanek","sztuka","sztuki","dag"];
 function goStep(n){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});
-  document.getElementById('panel'+n).classList.add('active');
+  document.getElementById('panel'+n+'b').classList.add('active');
   document.querySelectorAll('.step-btn').forEach(function(b,i){
     b.classList.remove('active','done');
     if(i+1<n)b.classList.add('done');
   });
-  document.getElementById('navStep'+n).classList.add('active');
+  document.getElementById('navStep'+n+'b').classList.add('active');
 }
 function showMsg(id,type,msg){
   document.getElementById(id).innerHTML='<div class="toast toast-'+type+'">'+msg+'</div>';
