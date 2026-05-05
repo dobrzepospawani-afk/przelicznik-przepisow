@@ -396,6 +396,7 @@ footer{
   <a href="#app" class="nav-cta">Wypróbuj za darmo →</a>
 </nav>
 
+
 <!-- HERO -->
 <section style="background:var(--cream)">
   <div class="hero">
@@ -452,14 +453,44 @@ footer{
         </div>
 
         <div class="panel active" id="panel1b">
-          <label class="field-label">Wklej opis przepisu</label>
-          <div class="field-card">
-            <textarea id="opisPrzepisu" rows="7" placeholder="Wklej tutaj cały tekst przepisu z TikToka, Instagrama lub FB...&#10;&#10;Np. &quot;Domowe nuggetsy 🍗&#10;• 500g piersi z kurczaka&#10;• 2 jajka&#10;• 150g bułki tartej&quot;&#10;&#10;Aplikacja sama znajdzie składniki!"></textarea>
+          <!-- ZAKŁADKI: tekst / zdjęcie -->
+          <div style="display:flex;gap:8px;margin-bottom:16px">
+            <button id="tabTekst" onclick="switchTab('tekst')" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--orange);background:var(--orange);color:#fff;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer">📝 Wklej tekst</button>
+            <button id="tabZdjecie" onclick="switchTab('zdjecie')" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--mid);font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer">📸 Wgraj zdjęcie</button>
           </div>
-          <div id="komunikat"></div>
-          <div class="action-row">
-            <button class="btn-tool btn-tool-blue" onclick="wyciagnijSkladniki()">🔍 Wyciągnij składniki</button>
-            <button class="btn-tool btn-tool-ghost" onclick="czyszc()">🗑 Wyczyść</button>
+
+          <!-- PANEL TEKST -->
+          <div id="tabPanelTekst">
+            <label class="field-label">Wklej opis przepisu</label>
+            <div class="field-card">
+              <textarea id="opisPrzepisu" rows="7" placeholder="Wklej tutaj cały tekst przepisu z TikToka, Instagrama lub FB...&#10;&#10;Np. &quot;Domowe nuggetsy 🍗&#10;• 500g piersi z kurczaka&#10;• 2 jajka&#10;• 150g bułki tartej&quot;&#10;&#10;Aplikacja sama znajdzie składniki!"></textarea>
+            </div>
+            <div id="komunikat"></div>
+            <div class="action-row">
+              <button class="btn-tool btn-tool-blue" onclick="wyciagnijSkladniki()">🔍 Wyciągnij składniki</button>
+              <button class="btn-tool btn-tool-ghost" onclick="czyszc()">🗑 Wyczyść</button>
+            </div>
+          </div>
+
+          <!-- PANEL ZDJĘCIE -->
+          <div id="tabPanelZdjecie" style="display:none">
+            <label class="field-label">Wgraj screenshot przepisu</label>
+            <div id="licznikUzyc" style="font-size:13px;font-weight:700;margin-bottom:12px;padding:10px 14px;background:var(--green-light);border-radius:10px;color:var(--green)">🤖 Darmowe analizy AI: <strong>5/5</strong></div>
+            <div id="dropZone" onclick="document.getElementById('fileInput').click()" style="border:2px dashed var(--border);border-radius:16px;padding:40px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--cream);margin-bottom:16px">
+              <div style="font-size:36px;margin-bottom:12px">📸</div>
+              <div style="font-weight:800;color:var(--dark);margin-bottom:6px">Kliknij aby wybrać zdjęcie</div>
+              <div style="font-size:13px;color:var(--light)">lub przeciągnij i upuść tutaj<br>Screenshot z TikToka, FB, Instagrama</div>
+              <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFile(this)">
+            </div>
+            <div id="podgladZdjecia" style="display:none;margin-bottom:16px;text-align:center">
+              <img id="previewImg" style="max-width:100%;max-height:250px;border-radius:12px;border:1.5px solid var(--border)">
+              <div style="margin-top:8px;font-size:12px;color:var(--light)" id="nazwaPliku"></div>
+            </div>
+            <div id="komunikatZdjecie"></div>
+            <div class="action-row">
+              <button class="btn-tool btn-tool-blue" onclick="analizujZdjecie()" id="btnAnalizuj">🤖 Analizuj zdjęcie AI</button>
+              <button class="btn-tool btn-tool-ghost" onclick="czyscZdjecie()">🗑 Wyczyść</button>
+            </div>
           </div>
         </div>
 
@@ -645,8 +676,173 @@ function czyszc(){
   ["opisPrzepisu","skladniki","glowny","mojaIlosc"].forEach(function(id){document.getElementById(id).value="";});
   document.getElementById("wynik").innerHTML="";
   document.getElementById("komunikat").innerHTML="";
+  czyscZdjecie();
   goStep(1);
 }
+
+var aktywnaZakladka = 'tekst';
+function switchTab(tab){
+  aktywnaZakladka = tab;
+  var isTekst = tab === 'tekst';
+  document.getElementById('tabPanelTekst').style.display = isTekst ? 'block' : 'none';
+  document.getElementById('tabPanelZdjecie').style.display = isTekst ? 'none' : 'block';
+  document.getElementById('tabTekst').style.background = isTekst ? 'var(--orange)' : 'transparent';
+  document.getElementById('tabTekst').style.color = isTekst ? '#fff' : 'var(--mid)';
+  document.getElementById('tabTekst').style.borderColor = isTekst ? 'var(--orange)' : 'var(--border)';
+  document.getElementById('tabZdjecie').style.background = !isTekst ? 'var(--orange)' : 'transparent';
+  document.getElementById('tabZdjecie').style.color = !isTekst ? '#fff' : 'var(--mid)';
+  document.getElementById('tabZdjecie').style.borderColor = !isTekst ? 'var(--orange)' : 'var(--border)';
+}
+
+var aktualneZdjecie = null;
+
+function handleFile(input){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    aktualneZdjecie = e.target.result;
+    document.getElementById('previewImg').src = aktualneZdjecie;
+    document.getElementById('nazwaPliku').textContent = file.name;
+    document.getElementById('podgladZdjecia').style.display = 'block';
+    document.getElementById('dropZone').style.borderColor = 'var(--orange)';
+    document.getElementById('dropZone').style.background = 'var(--orange-light)';
+  };
+  reader.readAsDataURL(file);
+}
+
+var dropZone = document.getElementById('dropZone');
+if(dropZone){
+  dropZone.addEventListener('dragover', function(e){
+    e.preventDefault();
+    this.style.borderColor = 'var(--orange)';
+    this.style.background = 'var(--orange-light)';
+  });
+  dropZone.addEventListener('dragleave', function(){
+    if(pozostaloUzyc() <= 0){
+    document.getElementById('komunikatZdjecie').innerHTML = '<div class="toast toast-err" style="background:#fff0f0;color:#c0392b;border:1px solid rgba(192,57,43,0.15)">❌ Wykorzystałeś darmowy limit 5 analiz. Dziękujemy za testowanie SmartPrzepis!</div>';
+    return;
+  }
+  if(!aktualneZdjecie){
+      this.style.borderColor = 'var(--border)';
+      this.style.background = 'var(--cream)';
+    }
+  });
+  dropZone.addEventListener('drop', function(e){
+    e.preventDefault();
+    var file = e.dataTransfer.files[0];
+    if(file && file.type.startsWith('image/')){
+      var dt = new DataTransfer();
+      dt.items.add(file);
+      document.getElementById('fileInput').files = dt.files;
+      handleFile(document.getElementById('fileInput'));
+    }
+  });
+}
+
+function czyscZdjecie(){
+  aktualneZdjecie = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('podgladZdjecia').style.display = 'none';
+  document.getElementById('komunikatZdjecie').innerHTML = '';
+  if(document.getElementById('dropZone')){
+    document.getElementById('dropZone').style.borderColor = 'var(--border)';
+    document.getElementById('dropZone').style.background = 'var(--cream)';
+  }
+}
+
+async function analizujZdjecie(){
+  if(!aktualneZdjecie){
+    document.getElementById('komunikatZdjecie').innerHTML = '<div class="toast toast-err">⚠ Najpierw wgraj zdjęcie!</div>';
+    return;
+  }
+  var btn = document.getElementById('btnAnalizuj');
+  btn.innerHTML = '⏳ Analizuję...';
+  btn.disabled = true;
+  document.getElementById('komunikatZdjecie').innerHTML = '<div class="toast toast-info" style="background:var(--blue-dim,#e8f0ff);color:#2d5be3;border:1px solid rgba(45,91,227,0.15)">🤖 AI analizuje zdjęcie — chwilkę...</div>';
+
+  var base64 = aktualneZdjecie.split(',')[1];
+  var mimeType = aktualneZdjecie.split(';')[0].split(':')[1];
+
+  try {
+    var response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getApiKey()
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: 'data:' + mimeType + ';base64,' + base64 }
+            },
+            {
+              type: 'text',
+              text: 'Znajdź wszystkie składniki w tym przepisie kulinarnym. Zwróć TYLKO listę składników, każdy w osobnej linii, w formacie: "ilość jednostka nazwa" (np. "200 g kurczaka", "2 jajka", "1 łyżka oliwy"). Bez numeracji, bez gwiazdek, bez dodatkowego tekstu. Jeśli nie widzisz składników, napisz tylko: BRAK'
+            }
+          ]
+        }]
+      })
+    });
+
+    var data = await response.json();
+
+    if(data.error){
+      document.getElementById('komunikatZdjecie').innerHTML = '<div class="toast toast-err">❌ Błąd API: ' + data.error.message + '</div>';
+      btn.innerHTML = '🤖 Analizuj zdjęcie AI';
+      btn.disabled = false;
+      return;
+    }
+
+    var wynik = data.choices[0].message.content.trim();
+
+    if(wynik === 'BRAK' || wynik.toLowerCase().includes('nie widzę')){
+      document.getElementById('komunikatZdjecie').innerHTML = '<div class="toast toast-err">❌ Nie znalazłem składników na tym zdjęciu. Spróbuj z wyraźniejszym zdjęciem.</div>';
+    } else {
+      addUzycie();
+      aktualizujLicznik();
+      var left = pozostaloUzyc();
+      var msg = left > 0 ? '✓ AI znalazło składniki! Pozostało darmowych analiz: ' + left + '/5' : '✓ AI znalazło składniki! To była Twoja ostatnia darmowa analiza.';
+      document.getElementById('skladniki').value = wynik;
+      document.getElementById('komunikatZdjecie').innerHTML = '<div class="toast toast-ok">' + msg + '</div>';
+      setTimeout(function(){ goStep(2); }, 1200);
+    }
+  } catch(err) {
+    document.getElementById('komunikatZdjecie').innerHTML = '<div class="toast toast-err">❌ Błąd połączenia: ' + err.message + '</div>';
+  }
+
+  btn.innerHTML = '🤖 Analizuj zdjęcie AI';
+  btn.disabled = false;
+}
+
+var _e = 'c2stcHJvai1TSGRWUlUySWI5T1FEQWNMVzJ0SmV5NDR3YndMUGNYcUd2eW5tTVNmbDhIWVZySW1RWks5dzlwWG1oTDB6eFB1YVctRlJQaGl2SFQzQmxia0ZKVGlpVmd5bGxydi1rRGRrUF95RWh1THpacWdpVFhBOHBYSXZNYkhqUVBZaGt6UFFzTGxrTlQ2czVEVngweG9oZjJkdDR1YUFnb0E=';
+function getApiKey(){ return atob(_e); }
+
+var LIMIT = 5;
+function getUzycia(){ return parseInt(localStorage.getItem('sp_uses') || '0'); }
+function addUzycie(){ localStorage.setItem('sp_uses', getUzycia() + 1); }
+function pozostaloUzyc(){ return Math.max(0, LIMIT - getUzycia()); }
+
+function aktualizujLicznik(){
+  var el = document.getElementById('licznikUzyc');
+  var left = pozostaloUzyc();
+  if(el){
+    if(left > 0){
+      el.innerHTML = '🤖 Darmowe analizy AI: <strong>' + left + '/5</strong>';
+      el.style.color = left <= 1 ? '#c0392b' : 'var(--green)';
+    } else {
+      el.innerHTML = '❌ Wykorzystałeś darmowy limit (5/5)';
+      el.style.color = '#c0392b';
+    }
+  }
+}
+
+window.addEventListener('load', function(){ aktualizujLicznik(); });
 </script>
+
 </body>
-</html>
