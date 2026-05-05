@@ -517,14 +517,29 @@ footer{
               <input id="mojaIlosc" type="number" placeholder="np. 300">
             </div>
           </div>
-          <div class="input-2col" style="margin-bottom:16px">
-            <div class="input-group">
-              <label>Liczba porcji w przepisie</label>
-              <input id="porcjeOryg" type="number" placeholder="np. 4" min="1">
+          <!-- FIT MODE TOGGLE -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--green-light);border-radius:12px;margin-bottom:16px;cursor:pointer" onclick="toggleFit()">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:18px">🥗</span>
+              <div>
+                <div style="font-size:13px;font-weight:800;color:var(--green)">Tryb FIT</div>
+                <div style="font-size:11px;color:var(--light)">Kalorie i porcje (opcjonalnie)</div>
+              </div>
             </div>
-            <div class="input-group">
-              <label>Kalorie całego przepisu (kcal)</label>
-              <input id="kalorieOryg" type="number" placeholder="np. 1200 (opcjonalnie)">
+            <div id="fitToggle" style="width:44px;height:24px;background:var(--border);border-radius:100px;position:relative;transition:all 0.2s">
+              <div id="fitDot" style="width:20px;height:20px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:all 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.2)"></div>
+            </div>
+          </div>
+          <div id="fitPanel" style="display:none;animation:fadeUp 0.3s ease">
+            <div class="input-2col" style="margin-bottom:16px">
+              <div class="input-group">
+                <label>Liczba porcji w przepisie</label>
+                <input id="porcjeOryg" type="number" placeholder="np. 4" min="1">
+              </div>
+              <div class="input-group">
+                <label>Kalorie całego przepisu (kcal)</label>
+                <input id="kalorieOryg" type="number" placeholder="np. 1200">
+              </div>
             </div>
           </div>
           <button class="btn-tool btn-tool-primary" onclick="przelicz()" style="margin-bottom:10px">✨ Przelicz proporcje</button>
@@ -616,17 +631,48 @@ function goStep(n){
 function showMsg(id,type,msg){
   document.getElementById(id).innerHTML='<div class="toast toast-'+type+'">'+msg+'</div>';
 }
+function stripEmoji(s){
+  return s.replace(/^[\u2000-\uFFFF\uD800-\uDFFF\u00A9\u00AE\u2000-\u3300]+\s*/,"").replace(/^[\*\-•·➤►▶→]+\s*/,"");
+}
 function czyToSkladnik(l){
-  var t=l.trim();
-  if(!/\d/.test(t))return false;
-  if(t.length>60)return false;
-  if(/^\d+\.\s+[A-ZŁŚŻŹĆŃÓĘĄ]/.test(t))return false;
+  var t=stripEmoji(l.trim());
+  if(t.length>80)return false;
+  // Skip numbered steps like "1. Podgrzej..."
+  if(/^\d+\.\s+[A-Z]/.test(t))return false;
+  // Skip instruction keywords
+  if(/^(piersi|do |ze |na |w |i |z |składniki mieszamy|kroim|wrzucam|smażym|gotuj)/i.test(t))return false;
+  // Has number at start -> ingredient
   if(/^[\*\-•]?\s*\d/.test(t))return true;
-  if(/\d+\s*(g|kg|ml|l|dag|szt|łyżk|łyżeczk|szklank)/i.test(t))return true;
+  // Number with unit anywhere
+  if(/\d+\s*(g|kg|ml|l|dag)[\s,]/i.test(t))return true;
+  // Starts with unit word (no number)
+  var unitWords=['łyżeczka','łyżeczki','łyżeczek','łyżkę','łyżka','łyżki','łyżek','szklanka','szklanki','szklanek','garść','szczypta','pęczek','ząbek','ząbki','opakowanie','puszka','plaster','plastry','gałązka'];
+  var tl=t.toLowerCase();
+  for(var i=0;i<unitWords.length;i++){
+    if(tl.indexOf(unitWords[i])===0)return true;
+  }
+  // Short line with common ingredient keywords
+  if(t.length<50){
+    var keywords=['sól','pieprz','olej','masło','woda','mleko','cukier','mąka','majonez','ketchup','musztarda','miód','śmietana','curry','ocet'];
+    for(var k=0;k<keywords.length;k++){
+      if(tl.indexOf(keywords[k])>=0)return true;
+    }
+  }
   return false;
 }
 function oczyscLinie(l){
-  return l.replace(/^[\*\-•·]\s*/,"").replace(/[^\w\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ.,\/½¼¾]/g," ").replace(/\s+/g," ").trim();
+  var t=l.trim();
+  // Remove leading emoji (any unicode above U+2000 at start)
+  t=t.replace(/^[\u2000-\uFFFF\uD800-\uDFFF]+\s*/,"");
+  // Remove leading bullets/markers
+  t=t.replace(/^[\*\-•·➤►▶→]+\s*/,"");
+  // Remove content in parentheses (tips/notes like "jak nie lubisz...")
+  t=t.replace(/\([^)]*\)/g,"");
+  // Remove trailing comma, asterisk
+  t=t.replace(/[,\*]\s*$/,"");
+  // Keep Polish chars, letters, numbers, units
+  t=t.replace(/[^\w\sąćęłńóśźżĄĆĘŁŃÓŚŹŻ.,\/½¼¾%]/g," ");
+  return t.replace(/\s+/g," ").trim();
 }
 function wyciagnijSkladniki(){
   var opis=document.getElementById("opisPrzepisu").value;
@@ -643,16 +689,33 @@ function normJednostka(j){
   if(jednostkiNorm[jl])return jednostkiNorm[jl];
   return j;
 }
+var jednostkiSlowne=["łyżeczka","łyżeczki","łyżek","łyżka","łyżki","szklanka","szklanki","szklanek","garść","szczypta","ząbek","ząbki","pęczek","opakowanie","puszka","plaster","plastry"];
 function parsujLinie(l){
-  var w=/^([\d.,½¼¾]+)\s*(\S+)?\s+(.+)$/.exec(l.trim());
-  if(!w)return null;
-  var raw=w[1].replace(',','.');
-  var liczba=raw==='½'?0.5:raw==='¼'?0.25:raw==='¾'?0.75:parseFloat(raw);
-  var d=w[2]||"",r=w[3]||"";
-  var dl=d.toLowerCase();
-  var isJednostka=jednostki.includes(dl)||jednostkiNorm[dl];
-  if(isJednostka)return{liczba:liczba,jednostka:normJednostka(d),nazwa:r};
-  return{liczba:liczba,jednostka:"szt",nazwa:d+" "+r};
+  var t=l.trim();
+  // Handle range "100-120 ml" -> take first number
+  t=t.replace(/(\d+)-(\d+)/,function(m,a,b){return a;});
+  // Handle "200g mąki + 150 do panierki" -> take before +
+  t=t.replace(/\s*\+.*$/,"");
+  // Try standard: number [unit] name
+  var w=/^([\d.,½¼¾]+)\s*(\S+)?\s+(.+)$/.exec(t);
+  if(w){
+    var raw=w[1].replace(',','.');
+    var liczba=raw==='½'?0.5:raw==='¼'?0.25:raw==='¾'?0.75:parseFloat(raw);
+    var d=w[2]||"",r=w[3]||"";
+    var dl=d.toLowerCase();
+    var isJednostka=jednostki.includes(dl)||jednostkiNorm[dl];
+    if(isJednostka)return{liczba:liczba,jednostka:normJednostka(d),nazwa:r};
+    return{liczba:liczba,jednostka:"szt",nazwa:d+" "+r};
+  }
+  // No number at start - check if starts with unit word (łyżeczka soli)
+  for(var i=0;i<jednostkiSlowne.length;i++){
+    var re=new RegExp('^('+jednostkiSlowne[i]+')\\s+(.+)$','i');
+    var m=re.exec(t);
+    if(m)return{liczba:1,jednostka:m[1],nazwa:m[2]};
+  }
+  // Plain ingredient no number/unit (olej do smażenia)
+  if(t.length>2)return{liczba:1,jednostka:"",nazwa:t};
+  return null;
 }
 function fmt(n){
   if(n%1<0.05||n%1>0.95)return Math.round(n).toString();
@@ -685,7 +748,20 @@ function przelicz(){
   var porcjeOryg=parseInt(document.getElementById("porcjeOryg").value)||0;
   var kalorieOryg=parseInt(document.getElementById("kalorieOryg").value)||0;
   var rows="";
-  for(var i=0;i<linie.length;i++){var p=parsujLinie(linie[i]);if(p)rows+='<div class="ing-row"><span class="ing-name">'+p.nazwa.charAt(0).toUpperCase()+p.nazwa.slice(1)+'</span><span class="ing-amt">'+fmt(p.liczba*prop)+' '+p.jednostka+'</span></div>';}
+  for(var i=0;i<linie.length;i++){
+    var linia=linie[i].trim();
+    // Section header (e.g. "Sos:", "Marynat:")
+    if(/^[A-ZŁŚŻŹĆŃÓĘĄ][^\d]{0,20}:$/.test(linia)){
+      rows+='<div style="font-size:11px;font-weight:800;color:var(--orange);text-transform:uppercase;letter-spacing:0.1em;padding:12px 0 4px;border-top:1px solid var(--border);margin-top:4px">'+linia.replace(':','')+'</div>';
+      continue;
+    }
+    var p=parsujLinie(linia);
+    if(p){
+      var amt=fmt(p.liczba*prop);
+      var jednostkaStr=p.jednostka?' '+p.jednostka:'';
+      rows+='<div class="ing-row"><span class="ing-name">'+p.nazwa.charAt(0).toUpperCase()+p.nazwa.slice(1)+'</span><span class="ing-amt">'+amt+jednostkaStr+'</span></div>';
+    }
+  }
   var mult=prop>=1?'×'+prop.toFixed(2):'÷'+(1/prop).toFixed(2);
 
   // Portions & calories block
@@ -887,6 +963,14 @@ function aktualizujLicznik(){
 }
 
 window.addEventListener('load', function(){ aktualizujLicznik(); });
+
+var fitMode=false;
+function toggleFit(){
+  fitMode=!fitMode;
+  document.getElementById('fitPanel').style.display=fitMode?'block':'none';
+  document.getElementById('fitToggle').style.background=fitMode?'var(--green)':'var(--border)';
+  document.getElementById('fitDot').style.left=fitMode?'22px':'2px';
+}
 </script>
 
 </body>
